@@ -1,7 +1,7 @@
 // In production (Azure Static Web Apps), VITE_API_URL points to the
 // Container Apps backend FQDN, injected at build time via GitHub Actions.
 // Locally, Vite's dev proxy (vite.config.js) forwards /api to localhost:8000.
-const API_URL = import.meta.env.VITE_API_URL || "";
+const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
 function headers() {
   const apiKey = localStorage.getItem("mem_api_key") || "";
