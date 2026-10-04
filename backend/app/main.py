@@ -22,7 +22,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=list(dict.fromkeys([
+        *settings.ALLOWED_ORIGINS,
+        "https://agent-memory-frontend.onrender.com",
+        "https://agent-memory-os-frontend.onrender.com",
+    ])),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
