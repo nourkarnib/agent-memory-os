@@ -1,0 +1,67 @@
+# Azure Container Apps definition — backend service
+# Deploy with: az containerapp create --yaml azure/backend-containerapp.yaml
+#
+# Prereqs (run once):
+#   az group create --name agent-memory-rg --location francecentral
+#   az acr create --name agentmemoryacr --resource-group agent-memory-rg --sku Basic
+#   az containerapp env create --name agent-memory-env --resource-group agent-memory-rg --location francecentral
+#   az keyvault create --name agent-memory-kv --resource-group agent-memory-rg --location francecentral
+
+properties:
+  managedEnvironmentId: /subscriptions/{sub-id}/resourceGroups/agent-memory-rg/providers/Microsoft.App/managedEnvironments/agent-memory-env
+
+  configuration:
+    ingress:
+      external: true
+      targetPort: 8000
+      transport: auto
+      allowInsecure: false
+
+    secrets:
+      # Each pulls live from Key Vault — rotate in Key Vault, no redeploy needed
+      - name: supabase-key
+        keyVaultUrl: https://agent-memory-kv.vault.azure.net/secrets/supabase-key
+        identity: system
+      - name: qdrant-api-key
+        keyVaultUrl: https://agent-memory-kv.vault.azure.net/secrets/qdrant-api-key
+        identity: system
+      - name: openai-api-key
+        keyVaultUrl: https://agent-memory-kv.vault.azure.net/secrets/openai-api-key
+        identity: system
+
+    registries:
+      - server: agentmemoryacr.azurecr.io
+        identity: system
+
+  template:
+    containers:
+      - name: backend
+        image: agentmemoryacr.azurecr.io/agent-memory-backend:latest
+        resources:
+          cpu: 0.5
+          memory: 1Gi
+        env:
+          - name: SUPABASE_URL
+            value: https://your-project.supabase.co
+          - name: SUPABASE_KEY
+            secretRef: supabase-key
+          - name: QDRANT_URL
+            value: https://agent-memory-qdrant.internal.{env-domain}
+          - name: QDRANT_API_KEY
+            secretRef: qdrant-api-key
+          - name: OPENAI_API_KEY
+            secretRef: openai-api-key
+          - name: ALLOWED_ORIGINS
+            value: '["https://app.agentmemory.io"]'
+
+    scale:
+      minReplicas: 0   # scales to zero when idle — pay nothing at rest
+      maxReplicas: 5
+      rules:
+        - name: http-scaling
+          http:
+            metadata:
+              concurrentRequests: "30"
+
+identity:
+  type: SystemAssigned   # used for Key Vault + ACR access, no stored credentials
