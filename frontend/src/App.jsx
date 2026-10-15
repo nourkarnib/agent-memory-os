@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createMemory, createWorkspace, listAgents, listMemories } from "./lib/api";
+import { createMemory, createWorkspace, listAgents, listMemories, searchMemories } from "./lib/api";
 
 function Badge({ label, bg, color, dot }) {
   return (
@@ -30,6 +30,10 @@ export default function App() {
   });
   const [savingMemory, setSavingMemory] = useState(false);
   const [memoryMessage, setMemoryMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [searchMessage, setSearchMessage] = useState("");
 
   useEffect(() => {
     localStorage.setItem("mem_api_key", apiKey);
@@ -124,6 +128,28 @@ export default function App() {
     } finally {
       setSavingMemory(false);
     }
+
+    async function handleSearch(event) {
+      event.preventDefault();
+      setSearching(true);
+      setSearchMessage("");
+      try {
+        const result = await searchMemories({
+          query: searchQuery,
+          top_k: 10,
+          min_score: 0.0,
+        });
+        setSearchResults(result.memories || []);
+        if (!result.memories?.length) {
+          setSearchMessage("No related memories found.");
+        }
+      } catch (err) {
+        setSearchMessage(err.message || "Search failed.");
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }
   }
 
   return (
@@ -213,6 +239,45 @@ export default function App() {
           </div>
         ) : (
           <>
+          {page === "search" && (
+            <div style={{ maxWidth: 720 }}>
+              <form onSubmit={handleSearch} style={{ background: "#fff", border: "0.5px solid #E8E8E4", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 8px" }}>Find related decisions</h2>
+                <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
+                  Describe the decision you are about to make.
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    required
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Should we offer a discount to a loyal customer?"
+                    style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                  />
+                  <button type="submit" disabled={searching} style={{ padding: "9px 14px", border: 0, borderRadius: 8, background: "#0A0A0B", color: "#fff", cursor: "pointer" }}>
+                    {searching ? "Searching..." : "Search"}
+                  </button>
+                </div>
+              </form>
+              {searchMessage && <p style={{ color: searchResults.length ? "#666" : "#b42318", fontSize: 13 }}>{searchMessage}</p>}
+              {searchResults.length > 0 && (
+                <div style={{ background: "#fff", border: "0.5px solid #E8E8E4", borderRadius: 12 }}>
+                  {searchResults.map((memory) => (
+                    <div key={memory.id} style={{ padding: "14px 16px", borderBottom: "0.5px solid #F0F0EC" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                        <strong style={{ fontSize: 13 }}>{memory.input?.task || "Memory"}</strong>
+                        <Badge label={`${Math.round((memory.relevance_score || 0) * 100)}% related`} bg="#E8F1FF" color="#174EA6" />
+                      </div>
+                      <p style={{ fontSize: 12, color: "#666", margin: "5px 0 0" }}>
+                        {memory.output?.decision || "No decision"} · {memory.output?.reason || "No reason provided"}
+                      </p>
+                      <p style={{ fontSize: 12, color: "#888", margin: "5px 0 0" }}>{memory.agent_id}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           {page === "dashboard" && (
             <form onSubmit={handleCreateMemory} style={{ background: "#fff", border: "0.5px solid #E8E8E4", borderRadius: 12, padding: 16, marginBottom: 16, maxWidth: 640 }}>
               <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>Add a memory</h2>
