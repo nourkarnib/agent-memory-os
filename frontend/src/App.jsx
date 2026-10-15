@@ -98,31 +98,31 @@ export default function App() {
     } catch {
       setCopyStatus("Select and copy the key manually");
     }
+  }
 
-    async function handleCreateMemory(event) {
-      event.preventDefault();
-      setSavingMemory(true);
-      setMemoryMessage("");
-      try {
-        await createMemory({
-          agent_id: memoryForm.agentId,
-          input: { task: memoryForm.task },
-          output: { decision: memoryForm.decision, reason: memoryForm.reason },
-          outcome: memoryForm.outcome,
-        });
-        setMemoryForm((current) => ({ ...current, task: "", decision: "", reason: "" }));
-        setMemoryMessage("Memory saved.");
-        const [memoryData, agentData] = await Promise.all([
-          listMemories({ limit: 20 }),
-          listAgents(),
-        ]);
-        setMemories(memoryData || []);
-        setAgents(agentData || []);
-      } catch (err) {
-        setMemoryMessage(err.message || "Failed to save memory.");
-      } finally {
-        setSavingMemory(false);
-      }
+  async function handleCreateMemory(event) {
+    event.preventDefault();
+    setSavingMemory(true);
+    setMemoryMessage("");
+    try {
+      await createMemory({
+        agent_id: memoryForm.agentId,
+        input: { task: memoryForm.task },
+        output: { decision: memoryForm.decision, reason: memoryForm.reason },
+        outcome: memoryForm.outcome,
+      });
+      setMemoryForm((current) => ({ ...current, task: "", decision: "", reason: "" }));
+      setMemoryMessage("Memory saved.");
+      const [memoryData, agentData] = await Promise.all([
+        listMemories({ limit: 20 }),
+        listAgents(),
+      ]);
+      setMemories(memoryData || []);
+      setAgents(agentData || []);
+    } catch (err) {
+      setMemoryMessage(err.message || "Failed to save memory.");
+    } finally {
+      setSavingMemory(false);
     }
   }
 
