@@ -1,4 +1,5 @@
-from openai import AsyncOpenAI
+from fastapi import HTTPException
+from openai import AsyncOpenAI, APIError, APIConnectionError, AuthenticationError
 from app.core.config import settings
 from typing import List, Dict, Any
 import json
@@ -35,11 +36,27 @@ def memory_to_text(input_data: Dict[str, Any], output_data: Dict[str, Any]) -> s
 
 
 async def embed_text(text: str) -> List[float]:
+    if not settings.OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Embeddings are not configured. Add OPENAI_API_KEY to the Render backend.",
+        )
     client = get_openai()
-    response = await client.embeddings.create(
-        model=settings.EMBEDDING_MODEL,
-        input=text[:8000],
-    )
+    try:
+        response = await client.embeddings.create(
+            model=settings.EMBEDDING_MODEL,
+            input=text[:8000],
+        )
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="The configured OPENAI_API_KEY was rejected by OpenAI.",
+        ) from exc
+    except (APIConnectionError, APIError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="The embedding provider is currently unavailable.",
+        ) from exc
     return response.data[0].embedding
 
 
