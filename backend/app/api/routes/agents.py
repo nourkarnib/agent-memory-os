@@ -21,11 +21,17 @@ async def register_agent(agent_in: AgentCreate, db=Depends(get_db), org_id: str 
 
 @router.get("/", response_model=List[AgentRead])
 async def list_agents(db=Depends(get_db), org_id: str = Depends(get_org_id)):
-    result = await db.table("agents").select("*, memories(count)").eq("org_id", org_id).order("created_at", desc=True).execute()
+    result = await db.table("agents").select("*").eq("org_id", org_id).order("created_at", desc=True).execute()
     agents = []
     for r in result.data:
-        count = r.pop("memories", [{}])
-        memory_count = count[0].get("count", 0) if count else 0
+        memory_result = await (
+            db.table("memories")
+            .select("id")
+            .eq("org_id", org_id)
+            .eq("agent_id", r["id"])
+            .execute()
+        )
+        memory_count = len(memory_result.data or [])
         agents.append(AgentRead(**r, memory_count=memory_count))
     return agents
 
