@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIM: int = 1536
+    EMBEDDING_PROVIDER: str = "local"
 
     # Auth
     JWT_ALGORITHM: str = "HS256"

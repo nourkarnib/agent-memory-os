@@ -2,7 +2,10 @@ from fastapi import HTTPException
 from openai import AsyncOpenAI, APIError, APIConnectionError, AuthenticationError
 from app.core.config import settings
 from typing import List, Dict, Any
+import hashlib
 import json
+import math
+import re
 
 _client: AsyncOpenAI | None = None
 
@@ -36,11 +39,11 @@ def memory_to_text(input_data: Dict[str, Any], output_data: Dict[str, Any]) -> s
 
 
 async def embed_text(text: str) -> List[float]:
+    if settings.EMBEDDING_PROVIDER.lower() != "openai":
+        return local_embed_text(text)
     if not settings.OPENAI_API_KEY:
-        raise HTTPException(
-            status_code=503,
-            detail="Embeddings are not configured. Add OPENAI_API_KEY to the Render backend.",
-        )
+        return local_embed_text(text)
+
     client = get_openai()
     try:
         response = await client.embeddings.create(
@@ -58,6 +61,30 @@ async def embed_text(text: str) -> List[float]:
             detail="The embedding provider is currently unavailable.",
         ) from exc
     return response.data[0].embedding
+
+
+def local_embed_text(text: str) -> List[float]:
+    """Create a deterministic, dependency-free vector for free/demo deployments."""
+    tokens = re.findall(r"[a-z0-9]+", text.lower())
+    vector = [0.0] * settings.EMBEDDING_DIM
+
+    for token in tokens:
+        digest = hashlib.blake2b(token.encode(), digest_size=8).digest()
+        index = int.from_bytes(digest[:4], "big") % settings.EMBEDDING_DIM
+        sign = 1.0 if digest[4] & 1 else -1.0
+        vector[index] += sign
+
+    for left, right in zip(tokens, tokens[1:]):
+        phrase = f"{left}:{right}".encode()
+        digest = hashlib.blake2b(phrase, digest_size=8).digest()
+        index = int.from_bytes(digest[:4], "big") % settings.EMBEDDING_DIM
+        sign = 1.0 if digest[4] & 1 else -1.0
+        vector[index] += 0.5 * sign
+
+    magnitude = math.sqrt(sum(value * value for value in vector))
+    if magnitude:
+        return [value / magnitude for value in vector]
+    return vector
 
 
 async def embed_memory(input_data: Dict[str, Any], output_data: Dict[str, Any]) -> List[float]:

@@ -51,6 +51,10 @@ The repository includes `render.yaml` for a simple two-service deployment:
 `ALLOWED_ORIGINS` must contain the frontend URL, for example:
 `["https://agent-memory-frontend.onrender.com"]`.
 
+The backend defaults to a deterministic local embedding mode, so the product
+can be tested without OpenAI billing. To use OpenAI embeddings instead, set
+`EMBEDDING_PROVIDER=openai` together with `OPENAI_API_KEY`.
+
 ---
 
 ## Deploying for free
