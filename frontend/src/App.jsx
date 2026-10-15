@@ -128,27 +128,27 @@ export default function App() {
     } finally {
       setSavingMemory(false);
     }
+  }
 
-    async function handleSearch(event) {
-      event.preventDefault();
-      setSearching(true);
-      setSearchMessage("");
-      try {
-        const result = await searchMemories({
-          query: searchQuery,
-          top_k: 10,
-          min_score: 0.0,
-        });
-        setSearchResults(result.memories || []);
-        if (!result.memories?.length) {
-          setSearchMessage("No related memories found.");
-        }
-      } catch (err) {
-        setSearchMessage(err.message || "Search failed.");
-        setSearchResults([]);
-      } finally {
-        setSearching(false);
+  async function handleSearch(event) {
+    event.preventDefault();
+    setSearching(true);
+    setSearchMessage("");
+    try {
+      const result = await searchMemories({
+        query: searchQuery,
+        top_k: 10,
+        min_score: 0.0,
+      });
+      setSearchResults(result.memories || []);
+      if (!result.memories?.length) {
+        setSearchMessage("No related memories found.");
       }
+    } catch (err) {
+      setSearchMessage(err.message || "Search failed.");
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
     }
   }
 
