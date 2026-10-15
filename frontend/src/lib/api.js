@@ -15,6 +15,25 @@ export async function listMemories(params = {}) {
   return res.json();
 }
 
+export async function createMemory(body) {
+  const res = await fetch(`${API_URL}/api/v1/memories/`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const responseBody = await res.json();
+      detail = responseBody.detail || "";
+    } catch {
+      detail = await res.text();
+    }
+    throw new Error(detail || `createMemory failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function getMemory(id) {
   const res = await fetch(`${API_URL}/api/v1/memories/${id}`, { headers: headers() });
   if (!res.ok) throw new Error(`getMemory failed: ${res.status}`);

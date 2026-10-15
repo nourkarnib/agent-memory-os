@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createWorkspace, listAgents, listMemories } from "./lib/api";
+import { createMemory, createWorkspace, listAgents, listMemories } from "./lib/api";
 
 function Badge({ label, bg, color, dot }) {
   return (
@@ -21,6 +21,15 @@ export default function App() {
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
+  const [memoryForm, setMemoryForm] = useState({
+    agentId: "test-agent",
+    task: "",
+    decision: "",
+    reason: "",
+    outcome: "success",
+  });
+  const [savingMemory, setSavingMemory] = useState(false);
+  const [memoryMessage, setMemoryMessage] = useState("");
 
   useEffect(() => {
     localStorage.setItem("mem_api_key", apiKey);
@@ -88,6 +97,32 @@ export default function App() {
       window.setTimeout(() => setCopyStatus(""), 2000);
     } catch {
       setCopyStatus("Select and copy the key manually");
+    }
+
+    async function handleCreateMemory(event) {
+      event.preventDefault();
+      setSavingMemory(true);
+      setMemoryMessage("");
+      try {
+        await createMemory({
+          agent_id: memoryForm.agentId,
+          input: { task: memoryForm.task },
+          output: { decision: memoryForm.decision, reason: memoryForm.reason },
+          outcome: memoryForm.outcome,
+        });
+        setMemoryForm((current) => ({ ...current, task: "", decision: "", reason: "" }));
+        setMemoryMessage("Memory saved.");
+        const [memoryData, agentData] = await Promise.all([
+          listMemories({ limit: 20 }),
+          listAgents(),
+        ]);
+        setMemories(memoryData || []);
+        setAgents(agentData || []);
+      } catch (err) {
+        setMemoryMessage(err.message || "Failed to save memory.");
+      } finally {
+        setSavingMemory(false);
+      }
     }
   }
 
@@ -177,6 +212,58 @@ export default function App() {
             </p>
           </div>
         ) : (
+          <>
+          {page === "dashboard" && (
+            <form onSubmit={handleCreateMemory} style={{ background: "#fff", border: "0.5px solid #E8E8E4", borderRadius: 12, padding: 16, marginBottom: 16, maxWidth: 640 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 12px" }}>Add a memory</h2>
+              <div style={{ display: "grid", gap: 8 }}>
+                <input
+                  required
+                  value={memoryForm.agentId}
+                  onChange={(e) => setMemoryForm({ ...memoryForm, agentId: e.target.value })}
+                  placeholder="Agent name"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                />
+                <input
+                  required
+                  value={memoryForm.task}
+                  onChange={(e) => setMemoryForm({ ...memoryForm, task: e.target.value })}
+                  placeholder="What decision was made?"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                />
+                <input
+                  required
+                  value={memoryForm.decision}
+                  onChange={(e) => setMemoryForm({ ...memoryForm, decision: e.target.value })}
+                  placeholder="Decision"
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                />
+                <textarea
+                  value={memoryForm.reason}
+                  onChange={(e) => setMemoryForm({ ...memoryForm, reason: e.target.value })}
+                  placeholder="Reason (optional)"
+                  rows={2}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd", resize: "vertical" }}
+                />
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <select
+                    value={memoryForm.outcome}
+                    onChange={(e) => setMemoryForm({ ...memoryForm, outcome: e.target.value })}
+                    style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+                  >
+                    <option value="success">Success</option>
+                    <option value="failure">Failure</option>
+                    <option value="pending">Pending</option>
+                    <option value="escalated">Escalated</option>
+                  </select>
+                  <button type="submit" disabled={savingMemory} style={{ padding: "9px 12px", border: 0, borderRadius: 8, background: "#0A0A0B", color: "#fff", cursor: "pointer" }}>
+                    {savingMemory ? "Saving..." : "Save memory"}
+                  </button>
+                  {memoryMessage && <span style={{ fontSize: 12, color: memoryMessage === "Memory saved." ? "#085041" : "#b42318" }}>{memoryMessage}</span>}
+                </div>
+              </div>
+            </form>
+          )}
           <div style={{ background: "#fff", border: "0.5px solid #E8E8E4", borderRadius: 12 }}>
             {loading && <p style={{ padding: 16, color: "#666", margin: 0 }}>Loading memories...</p>}
             {!loading && error && <p style={{ padding: 16, color: "#b42318", margin: 0 }}>{error}</p>}
@@ -194,6 +281,7 @@ export default function App() {
               </div>
             ))}
           </div>
+          </>
         )}
 
         {page === "agents" && agents.length > 0 && (
