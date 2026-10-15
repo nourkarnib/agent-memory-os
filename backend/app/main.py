@@ -28,9 +28,23 @@ app = FastAPI(
 @app.exception_handler(Exception)
 async def handle_unexpected_error(request: Request, exc: Exception):
     logger.exception("Unhandled request error: %s %s", request.method, request.url.path)
+    origin = request.headers.get("origin")
+    allowed_origins = {
+        *settings.ALLOWED_ORIGINS,
+        "https://agent-memory-frontend.onrender.com",
+        "https://agent-memory-os-frontend.onrender.com",
+    }
+    headers = {}
+    if origin in allowed_origins:
+        headers = {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Vary": "Origin",
+        }
     return JSONResponse(
         status_code=500,
         content={"detail": "The backend could not complete the request. Check the Render logs."},
+        headers=headers,
     )
 
 
