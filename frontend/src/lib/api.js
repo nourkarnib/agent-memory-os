@@ -44,8 +44,14 @@ export async function createWorkspace(organizationName) {
     body: JSON.stringify({ organization_name: organizationName, key_name: "Dashboard" }),
   });
   if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Workspace setup failed: ${res.status} ${detail}`);
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail = body.detail || "";
+    } catch {
+      detail = await res.text();
+    }
+    throw new Error(detail || `Workspace setup failed (${res.status}).`);
   }
   return res.json();
 }

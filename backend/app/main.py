@@ -1,10 +1,15 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from app.api.routes import memories, agents, search, analytics, onboarding
 from app.core.config import settings
 from app.db.qdrant import init_qdrant
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -19,6 +24,15 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+@app.exception_handler(Exception)
+async def handle_unexpected_error(request: Request, exc: Exception):
+    logger.exception("Unhandled request error: %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "The backend could not complete the request. Check the Render logs."},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,
