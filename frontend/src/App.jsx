@@ -19,6 +19,8 @@ export default function App() {
   const [apiKey, setApiKey] = useState(localStorage.getItem("mem_api_key") || "");
   const [organizationName, setOrganizationName] = useState("");
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("");
 
   useEffect(() => {
     localStorage.setItem("mem_api_key", apiKey);
@@ -79,6 +81,16 @@ export default function App() {
     }
   }
 
+  async function handleCopyApiKey() {
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      setCopyStatus("Copied");
+      window.setTimeout(() => setCopyStatus(""), 2000);
+    } catch {
+      setCopyStatus("Select and copy the key manually");
+    }
+  }
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#F8F8F6", fontFamily: "system-ui, sans-serif" }}>
       <aside style={{ width: 200, background: "#0A0A0B", padding: "20px 12px", flexShrink: 0 }}>
@@ -134,15 +146,34 @@ export default function App() {
               </form>
             )}
             <label style={{ display: "block", fontSize: 12, color: "#666", marginBottom: 8 }}>API key</label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="mem_api_key"
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd", marginBottom: 12 }}
-            />
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <input
+                type={showApiKey ? "text" : "password"}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="mem_api_key"
+                style={{ flex: 1, minWidth: 0, padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey((visible) => !visible)}
+                disabled={!apiKey}
+                style={{ padding: "0 12px", border: "1px solid #ddd", borderRadius: 8, background: "#fff", cursor: apiKey ? "pointer" : "default" }}
+              >
+                {showApiKey ? "Hide" : "Show"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyApiKey}
+                disabled={!apiKey}
+                style={{ padding: "0 12px", border: "1px solid #ddd", borderRadius: 8, background: "#fff", cursor: apiKey ? "pointer" : "default" }}
+              >
+                Copy
+              </button>
+            </div>
+            {copyStatus && <p style={{ margin: "-4px 0 12px", fontSize: 12, color: "#085041" }}>{copyStatus}</p>}
             <p style={{ margin: 0, fontSize: 12, color: "#666" }}>
-              Stored in localStorage as <strong>mem_api_key</strong>.
+              Stored in localStorage as <strong>mem_api_key</strong>. Keep it private.
             </p>
           </div>
         ) : (
