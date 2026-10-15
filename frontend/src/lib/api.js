@@ -37,6 +37,19 @@ export async function listAgents() {
   return res.json();
 }
 
+export async function createWorkspace(organizationName) {
+  const res = await fetch(`${API_URL}/api/v1/onboarding/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ organization_name: organizationName, key_name: "Dashboard" }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Workspace setup failed: ${res.status} ${detail}`);
+  }
+  return res.json();
+}
+
 export async function getAnalyticsSummary() {
   const res = await fetch(`${API_URL}/api/v1/analytics/summary`, { headers: headers() });
   if (!res.ok) throw new Error(`getAnalyticsSummary failed: ${res.status}`);

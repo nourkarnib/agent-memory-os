@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.api.routes import memories, agents, search, analytics
+from app.api.routes import memories, agents, search, analytics, onboarding
 from app.core.config import settings
 from app.db.qdrant import init_qdrant
 
@@ -36,6 +36,7 @@ app.include_router(memories.router, prefix="/api/v1/memories", tags=["memories"]
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["agents"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
+app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["onboarding"])
 
 
 @app.get("/health")

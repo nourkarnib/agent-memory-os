@@ -31,6 +31,10 @@ npm install
 npm run dev
 ```
 
+On first visit, open **Settings** and create a workspace. The dashboard will
+issue one API key and store it in the browser so the protected API endpoints
+can be tested without manually provisioning database records.
+
 ## Deploying with Render
 
 The repository includes `render.yaml` for a simple two-service deployment:

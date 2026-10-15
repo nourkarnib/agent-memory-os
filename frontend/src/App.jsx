@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listAgents, listMemories } from "./lib/api";
+import { createWorkspace, listAgents, listMemories } from "./lib/api";
 
 function Badge({ label, bg, color, dot }) {
   return (
@@ -17,6 +17,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [apiKey, setApiKey] = useState(localStorage.getItem("mem_api_key") || "");
+  const [organizationName, setOrganizationName] = useState("");
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("mem_api_key", apiKey);
@@ -26,6 +28,15 @@ export default function App() {
     const apiBase = import.meta.env.VITE_API_URL;
     if (!apiBase) {
       setError("No VITE_API_URL configured. Set it to your Render backend URL.");
+      setLoading(false);
+      return;
+    }
+
+    if (!apiKey.trim()) {
+      setMemories([]);
+      setAgents([]);
+      setError("Add your API key in Settings to load memory data.");
+      setPage("settings");
       setLoading(false);
       return;
     }
@@ -48,9 +59,25 @@ export default function App() {
     }
 
     loadData();
-  }, []);
+  }, [apiKey]);
 
   const visibleMemories = memories.slice(0, 8);
+
+  async function handleCreateWorkspace(event) {
+    event.preventDefault();
+    setCreatingWorkspace(true);
+    setError("");
+    try {
+      const result = await createWorkspace(organizationName);
+      setApiKey(result.api_key);
+      setOrganizationName("");
+      setPage("dashboard");
+    } catch (err) {
+      setError(err.message || "Failed to create workspace.");
+    } finally {
+      setCreatingWorkspace(false);
+    }
+  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#F8F8F6", fontFamily: "system-ui, sans-serif" }}>
@@ -88,6 +115,24 @@ export default function App() {
 
         {page === "settings" ? (
           <div style={{ background: "#fff", border: "0.5px solid #E8E8E4", borderRadius: 12, padding: 16, maxWidth: 480 }}>
+            {!apiKey && (
+              <form onSubmit={handleCreateWorkspace} style={{ marginBottom: 24, paddingBottom: 20, borderBottom: "1px solid #eee" }}>
+                <h2 style={{ fontSize: 16, fontWeight: 500, margin: "0 0 8px" }}>Create a workspace</h2>
+                <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
+                  Create a workspace to get an API key for this dashboard.
+                </p>
+                <input
+                  required
+                  value={organizationName}
+                  onChange={(e) => setOrganizationName(e.target.value)}
+                  placeholder="Your organization name"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #ddd", marginBottom: 8 }}
+                />
+                <button type="submit" disabled={creatingWorkspace} style={{ padding: "9px 12px", border: 0, borderRadius: 8, background: "#0A0A0B", color: "#fff", cursor: "pointer" }}>
+                  {creatingWorkspace ? "Creating..." : "Create workspace"}
+                </button>
+              </form>
+            )}
             <label style={{ display: "block", fontSize: 12, color: "#666", marginBottom: 8 }}>API key</label>
             <input
               type="password"

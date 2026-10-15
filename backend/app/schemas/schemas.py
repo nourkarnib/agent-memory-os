@@ -89,6 +89,16 @@ class AgentRead(BaseModel):
         from_attributes = True
 
 
+class OnboardingRequest(BaseModel):
+    organization_name: str = Field(..., min_length=1, max_length=100)
+    key_name: str = Field(default="Dashboard", min_length=1, max_length=100)
+
+
+class OnboardingResponse(BaseModel):
+    organization_name: str
+    api_key: str
+
+
 class AnalyticsSummary(BaseModel):
     total_memories: int
     total_agents: int
