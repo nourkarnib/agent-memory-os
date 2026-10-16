@@ -272,6 +272,15 @@ export default function App() {
                         {memory.output?.decision || "No decision"} · {memory.output?.reason || "No reason provided"}
                       </p>
                       <p style={{ fontSize: 12, color: "#888", margin: "5px 0 0" }}>{memory.agent_id}</p>
+                      {memory.retrieval_debug && (
+                        <p style={{ fontSize: 11, color: "#888", margin: "6px 0 0" }}>
+                          Score: {Math.round((memory.relevance_score || 0) * 100)}% ·
+                          semantic {Math.round((memory.retrieval_debug.semantic || 0) * 100)}% ·
+                          keywords {Math.round((memory.retrieval_debug.keyword || 0) * 100)}% ·
+                          outcome {Math.round((memory.retrieval_debug.outcome || 0) * 100)}% ·
+                          recency {Math.round((memory.retrieval_debug.recency || 0) * 100)}%
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

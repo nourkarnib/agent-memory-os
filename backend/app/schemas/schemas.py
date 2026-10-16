@@ -45,6 +45,7 @@ class MemoryRead(BaseModel):
     tokens_used: Optional[int]
     created_at: datetime
     relevance_score: Optional[float] = None
+    retrieval_debug: Optional[Dict[str, float]] = None
 
     class Config:
         from_attributes = True

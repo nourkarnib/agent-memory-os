@@ -3,6 +3,66 @@ from app.schemas.schemas import SearchQuery, SearchResult, MemoryRead
 from app.services.embeddings import embed_text, local_embed_text, memory_to_text
 from app.core.config import settings
 from app.db.qdrant import search_memories
+from datetime import datetime, timezone
+import math
+import re
+
+
+def _tokens(text: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", text.lower()))
+
+
+def _lexical_score(query: str, record: dict) -> float:
+    query_tokens = _tokens(query)
+    if not query_tokens:
+        return 0.0
+    searchable = memory_to_text(record["input"], record["output"])
+    searchable += " " + " ".join(record.get("tags") or [])
+    return len(query_tokens & _tokens(searchable)) / len(query_tokens)
+
+
+def _outcome_score(record: dict) -> float:
+    return {
+        "success": 1.0,
+        "pending": 0.5,
+        "escalated": 0.5,
+        "failure": 0.2,
+    }.get(record.get("outcome"), 0.5)
+
+
+def _recency_score(record: dict) -> float:
+    created_at = datetime.fromisoformat(record["created_at"].replace("Z", "+00:00"))
+    age_days = max(
+        0.0,
+        (datetime.now(timezone.utc) - created_at).total_seconds() / 86400,
+    )
+    return math.exp(-age_days / 90)
+
+
+def _rerank(query: str, candidates: list[tuple[float, dict]], limit: int) -> list[MemoryRead]:
+    ranked = []
+    for semantic_score, record in candidates:
+        keyword_score = _lexical_score(query, record)
+        outcome_score = _outcome_score(record)
+        recency_score = _recency_score(record)
+        final_score = (
+            0.65 * semantic_score
+            + 0.20 * keyword_score
+            + 0.10 * outcome_score
+            + 0.05 * recency_score
+        )
+        memory = MemoryRead(**record)
+        memory.relevance_score = round(final_score, 4)
+        memory.retrieval_debug = {
+            "semantic": round(semantic_score, 4),
+            "keyword": round(keyword_score, 4),
+            "outcome": round(outcome_score, 4),
+            "recency": round(recency_score, 4),
+        }
+        ranked.append(memory)
+
+    ranked.sort(key=lambda memory: memory.relevance_score or 0, reverse=True)
+    return ranked[:limit]
 
 
 async def semantic_search(db: AsyncClient, query: SearchQuery, org_id: str) -> SearchResult:
@@ -20,7 +80,7 @@ async def semantic_search(db: AsyncClient, query: SearchQuery, org_id: str) -> S
         filters["outcome"] = query.outcome.value
 
     hits = await search_memories(
-        query_vector=query_vector, top_k=query.top_k, min_score=query.min_score, filters=filters,
+        query_vector=query_vector, top_k=min(query.top_k * 4, 50), min_score=0.0, filters=filters,
     )
 
     if not hits:
@@ -31,13 +91,14 @@ async def semantic_search(db: AsyncClient, query: SearchQuery, org_id: str) -> S
 
     result = await db.table("memories").select("*").in_("id", memory_ids).execute()
 
-    memories = []
-    for record in result.data:
-        mem = MemoryRead(**record)
-        mem.relevance_score = round(score_map.get(record["id"], 0.0), 4)
-        memories.append(mem)
-
-    memories.sort(key=lambda m: m.relevance_score or 0, reverse=True)
+    candidates = [
+        (score_map.get(record["id"], 0.0), record)
+        for record in result.data
+    ]
+    memories = [
+        memory for memory in _rerank(query.query, candidates, query.top_k)
+        if (memory.relevance_score or 0.0) >= query.min_score
+    ]
 
     return SearchResult(memories=memories, total=len(memories), query=query.query)
 
@@ -62,12 +123,10 @@ async def local_search(db: AsyncClient, query: SearchQuery, org_id: str) -> Sear
         if score >= query.min_score:
             scored.append((score, record))
 
-    scored.sort(key=lambda item: item[0], reverse=True)
-    memories = []
-    for score, record in scored[:query.top_k]:
-        memory = MemoryRead(**record)
-        memory.relevance_score = round(score, 4)
-        memories.append(memory)
+    memories = [
+        memory for memory in _rerank(query.query, scored, query.top_k)
+        if (memory.relevance_score or 0.0) >= query.min_score
+    ]
 
     return SearchResult(
         memories=memories,
